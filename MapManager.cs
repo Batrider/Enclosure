@@ -68,10 +68,24 @@ public class MapManager : MonoBehaviour
         Messenger.Broadcast(MapEvent.Generate_Finish);
     }
     #endregion
-
+    struct BlankSection
+    {
+        public int minLine;
+        public int maxLine;
+        public int minRow;
+        public int maxRow;
+        public BlankSection(int minL, int maxL, int minR, int maxR)
+        {
+            minLine = minL;
+            maxLine = maxL;
+            minRow = minR;
+            maxRow = maxR;
+        }
+    }
+    
+    static float time;
     public static void LineToAreaCheck(List<Vector2> curLine)
     {
-        line = curLine;
         int startIndex = -1;
         int endIndex = -1;
         for (int i = 0; i < curLine.Count; i++)
@@ -89,251 +103,85 @@ public class MapManager : MonoBehaviour
         if (startIndex != -1 && endIndex != -1 && startIndex != endIndex)
         {
             time = Time.realtimeSinceStartup;
-
-            minLine = int.MaxValue;
-            maxLine = int.MinValue;
-            minRow = int.MaxValue;
-            maxRow = int.MinValue;
+            BlankSection bSection = new BlankSection(int.MaxValue, int.MinValue, int.MaxValue, int.MinValue);
             for (int i = 0; i < curLine.Count; i++)
             {
-                minLine = Mathf.Min(minLine, (int)curLine[i].x);
-                maxLine = Mathf.Max(maxLine, (int)curLine[i].x);
-                minRow = Mathf.Min(minRow, (int)curLine[i].y);
-                maxRow = Mathf.Max(maxRow, (int)curLine[i].y);
+                bSection.minLine = Mathf.Min(bSection.minLine, (int)curLine[i].x);
+                bSection.maxLine = Mathf.Max(bSection.maxLine, (int)curLine[i].x);
+                bSection.minRow = Mathf.Min(bSection.minRow, (int)curLine[i].y);
+                bSection.maxRow = Mathf.Max(bSection.maxRow, (int)curLine[i].y);
             }
-            List<Vector2> areas = new List<Vector2>();
-            for (int i = minLine; i <= maxLine; i++)
-            {
-                for (int j = minRow; j <= maxRow; j++)
-                {
-                    areas.Add(new Vector2(i, j));
-                }
-            }
-            //取外轮廓线条列表
-            //递归，依次加入开放区域
-            List<Vector2> blankAreas = new List<Vector2>();
-            for (int i = 0; i < areas.Count; i++)
-            {
-                if (!curLine.Contains(areas[i]))
-                {
-                    blankAreas.Add(areas[i]);
-                }
-            }
-            cullAreas.Clear();
-            closureAreas.Clear();
-            traceCount = 0;
-            for (int i = 0; i < blankAreas.Count; i++)
-            {
-                if (!cullAreas.Contains(blankAreas[i]) && !closureAreas.Contains(blankAreas[i]))
-                {
-                    List<Vector2> newAreas = new List<Vector2>();
-                    bool state = BlankAreaCheck(blankAreas[i], blankAreas, newAreas, out newAreas);
-                    if (state)
-                    {
-                        cullAreas.AddRange(newAreas);
-                    }
-                    else
-                    {
-                        closureAreas.AddRange(newAreas);
-                    }
-
-                }
-            }
-            Debug.Log("traceCount：" + traceCount);
-            
-            for (int i = 0; i < areas.Count; i++)
-            {
-                if (!cullAreas.Contains(areas[i]))
-                {
-                    LightOnBlock(areas[i]);
-                }
-            }
-            Debug.Log("time:" + (Time.realtimeSinceStartup - time));
-        }
-    }
-    static float time;
-    static int minLine = int.MaxValue;
-    static int maxLine = int.MinValue;
-    static int minRow = int.MaxValue;
-    static int maxRow = int.MinValue;
-    static List<Vector2> cullAreas = new List<Vector2>();
-    static List<Vector2> closureAreas = new List<Vector2>();
-    static List<Vector2> line = new List<Vector2>();
-    static Dictionary<Vector2, bool> blockState = new Dictionary<Vector2, bool>();
-    static Dictionary<int, Dictionary<Vector2, int>> dict = new Dictionary<int, Dictionary<Vector2, int>>();
-    static int traceCount = 0;
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="orginArea">相邻空白点</param>
-    /// <param name="targetPoint">空白点</param>
-    /// <returns></returns>
-    static bool BlankAreaCheck(Vector2 targetPoint,List<Vector2> blankAreas,List<Vector2> oldAreas, out List<Vector2> newAreas)
-    {
-        traceCount++;
-        newAreas = oldAreas;
-        if (targetPoint.x > maxLine || targetPoint.x < minLine || targetPoint.y > maxRow || targetPoint.y < minRow)
-        {
-            return true;
-        }
-        if(cullAreas.Contains(targetPoint))
-        {
-            return true;
-        }
-        if (line.Contains(targetPoint))
-        {
-            return false;
-        }
-        if(newAreas.Contains(targetPoint))
-        {
-            return false;
-        }
-        if (blankAreas.Contains(targetPoint))
-        {
-            newAreas.Add(targetPoint);
-            int targetLine;
-            int targetRow;
-            //下--
-            targetLine = (int)targetPoint.x + 1;
-            targetRow = (int)targetPoint.y;
-            bool downState = BlankAreaCheck(new Vector2(targetLine, targetRow), blankAreas, newAreas, out newAreas);
-            if (downState)
-            {
-                return true;
-            }
-            //右--
-            targetLine = (int)targetPoint.x;
-            targetRow = (int)targetPoint.y + 1;
-            bool right = BlankAreaCheck(new Vector2(targetLine, targetRow), blankAreas, newAreas, out newAreas);
-            if (right)
-            {
-                return true;
-            }
-            //上--
-            targetLine = (int)targetPoint.x - 1;
-            targetRow = (int)targetPoint.y;
-            bool upState = BlankAreaCheck(new Vector2(targetLine, targetRow), blankAreas, newAreas, out newAreas);
-            if(upState)
-            {
-                return true;
-            }
-            //左--
-            targetLine = (int)targetPoint.x;
-            targetRow = (int)targetPoint.y - 1;
-            bool leftState = BlankAreaCheck(new Vector2(targetLine, targetRow), blankAreas, newAreas, out newAreas);
-            if (leftState)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-    public static void LineToAreaCheck2(List<Vector2> curLine)
-    {
-
-        line = curLine;
-        int startIndex = -1;
-        int endIndex = -1;
-        for (int i = 0; i < curLine.Count; i++)
-        {
-            for (int j = i + 1; j < curLine.Count; j++)
-            {
-                if (curLine[i] == curLine[j])
-                {
-                    startIndex = i;
-                    endIndex = j;
-                    break;
-                }
-            }
-        }
-        if (startIndex != -1 && endIndex != -1 && startIndex != endIndex)
-        {
-            time = Time.realtimeSinceStartup;
-
-            minLine = int.MaxValue;
-            maxLine = int.MinValue;
-            minRow = int.MaxValue;
-            maxRow = int.MinValue;
+            Dictionary<Vector2, int> curLineDict = new Dictionary<Vector2, int>();
             for (int i = 0; i < curLine.Count; i++)
             {
-                minLine = Mathf.Min(minLine, (int)curLine[i].x);
-                maxLine = Mathf.Max(maxLine, (int)curLine[i].x);
-                minRow = Mathf.Min(minRow, (int)curLine[i].y);
-                maxRow = Mathf.Max(maxRow, (int)curLine[i].y);
-            }
-            Debug.Log("time:" + (Time.realtimeSinceStartup - time));
-            List<Vector2> areas = new List<Vector2>();
-            for (int i = minLine; i <= maxLine; i++)
-            {
-                for (int j = minRow; j <= maxRow; j++)
+                if (!curLineDict.ContainsKey(curLine[i]))
                 {
-                    areas.Add(new Vector2(i, j));
+                    curLineDict.Add(curLine[i], 0);
                 }
             }
             Debug.Log("time:" + (Time.realtimeSinceStartup - time));
-            //取外轮廓线条列表
-            //递归，依次加入开放区域
-            Dictionary<Vector2, int> blankDict = new Dictionary<Vector2, int>();
-            for (int i = 0; i < areas.Count; i++)
-            {
-                if (!curLine.Contains(areas[i]))
-                {
-                    blankDict.Add(areas[i], i);
-                }
-            }
-            dict.Clear();
-            traceCount = 0;
-            Debug.Log("time:" + (Time.realtimeSinceStartup - time));
-
+            var dict = new Dictionary<int, Dictionary<Vector2, int>>();
             //分区--
-            foreach (var blankTemp in blankDict)
+            for (int i = bSection.minLine; i <= bSection.maxLine; i++)
             {
-                bool isAllreadyIn = false;
-                foreach (var temp in dict)
+                for (int j = bSection.minRow; j <= bSection.maxRow; j++)
                 {
-                    if (temp.Value.ContainsKey(blankTemp.Key))
+                    Vector2 target = new Vector2(i, j);
+                    bool isAllreadyIn = false;
+                    foreach (var temp in dict)
                     {
-                        isAllreadyIn = true;
-                        break;
+                        if (temp.Value.ContainsKey(target))
+                        {
+                            isAllreadyIn = true;
+                            break;
+                        }
                     }
-                }
-                if (!isAllreadyIn)
-                {
-                    Dictionary<Vector2, int> newAreas = new Dictionary<Vector2, int>();
-                    newAreas.Add(blankTemp.Key, 0);
-                    Debug.Log("time1:" + (Time.realtimeSinceStartup - time));
-                    SplitAreasReclusion(blankDict, blankTemp.Key, newAreas, out newAreas);
-                    Debug.Log("time2:" + (Time.realtimeSinceStartup - time));
-                    dict.Add(dict.Count, newAreas);
+                    if (!isAllreadyIn && !curLineDict.ContainsKey(target))
+                    {
+                        Dictionary<Vector2, int> newAreas = new Dictionary<Vector2, int>();
+                        newAreas.Add(target, 0);
+                        Debug.Log("time1:" + (Time.realtimeSinceStartup - time));
+                        SplitAreasReclusion(bSection, curLineDict, target, newAreas, out newAreas);
+                        Debug.Log("time2:" + (Time.realtimeSinceStartup - time));
+                        dict.Add(dict.Count, newAreas);
+                    }
                 }
             }
             Debug.Log("time:" + (Time.realtimeSinceStartup - time));
-
             //对每个区进行开闭检测=--
+            Dictionary<Vector2, int> cullAreasDict = new Dictionary<Vector2, int>();
             foreach (var temp in dict)
             {
-                if (EnCullAreasCheck(temp.Value))
+                if (EnCullAreasCheck(temp.Value, bSection))
                 {
-                    foreach(var temp2 in temp.Value)
+                    foreach (var temp2 in temp.Value)
                     {
-                        cullAreas.Add(temp2.Key);
+                        cullAreasDict.Add(temp2.Key, 0);
                     }
                 }
             }
-
-            Debug.Log("traceCount：" + traceCount);
-
-            for (int i = 0; i < areas.Count; i++)
+            Debug.Log("time:" + (Time.realtimeSinceStartup - time));
+            for (int i = bSection.minLine; i <= bSection.maxLine; i++)
             {
-                if (!cullAreas.Contains(areas[i]))
+                for (int j = bSection.minRow; j <= bSection.maxRow; j++)
                 {
-                    LightOnBlock(areas[i]);
+                    Vector2 target = new Vector2(i, j);
+                    if (!cullAreasDict.ContainsKey(target))
+                    {
+                        LightOnBlock(target);
+                    }
                 }
             }
             Debug.Log("time:" + (Time.realtimeSinceStartup - time));
         }
     }
-    static bool EnCullAreasCheck(Dictionary<Vector2, int> areas)
+    /// <summary>
+    /// 闭合区间检查--
+    /// </summary>
+    /// <param name="areas"></param>
+    /// <param name="bSection"></param>
+    /// <returns></returns>
+    static bool EnCullAreasCheck(Dictionary<Vector2, int> areas, BlankSection bSection)
     {
         if (areas.Count > 0)
         {
@@ -341,25 +189,32 @@ public class MapManager : MonoBehaviour
             int curAreaMaxLine = int.MinValue;
             int curAreaMinRow = int.MaxValue;
             int curAreaMaxRow = int.MinValue;
-            foreach(var temp in areas)
+            foreach (var temp in areas)
             {
                 curAreaMinLine = Mathf.Min(curAreaMinLine, (int)temp.Key.x);
                 curAreaMaxLine = Mathf.Max(curAreaMaxLine, (int)temp.Key.x);
                 curAreaMinRow = Mathf.Min(curAreaMinRow, (int)temp.Key.y);
                 curAreaMaxRow = Mathf.Max(curAreaMaxRow, (int)temp.Key.y);
             }
-            
-            if (curAreaMaxLine >= maxLine || curAreaMinLine <= minLine || curAreaMaxRow >= maxRow || curAreaMinRow <= minRow)
+
+            if (curAreaMaxLine >= bSection.maxLine || curAreaMinLine <= bSection.minLine || curAreaMaxRow >= bSection.maxRow || curAreaMinRow <= bSection.minRow)
             {
                 return true;
             }
         }
         return false;
     }
-    static void SplitAreasReclusion(Dictionary<Vector2, int> blankAreas, Vector2 targetPoint, Dictionary<Vector2, int> oldAreas, out Dictionary<Vector2, int> newAreas)
-    {
-        traceCount++;
 
+    /// <summary>
+    /// 区间分割--
+    /// </summary>
+    /// <param name="bSection"></param>
+    /// <param name="curLine"></param>
+    /// <param name="targetPoint"></param>
+    /// <param name="oldAreas"></param>
+    /// <param name="newAreas"></param>
+    static void SplitAreasReclusion(BlankSection bSection, Dictionary<Vector2, int> curLine, Vector2 targetPoint, Dictionary<Vector2, int> oldAreas, out Dictionary<Vector2, int> newAreas)
+    {
         newAreas = oldAreas;
         float targetLine;
         float targetRow;
@@ -368,37 +223,41 @@ public class MapManager : MonoBehaviour
         targetLine = targetPoint.x + 1;
         targetRow = targetPoint.y;
         newTargetPoint = new Vector2(targetLine, targetRow);
-        if (blankAreas.ContainsKey(newTargetPoint) && !newAreas.ContainsKey(newTargetPoint))
+        if (!curLine.ContainsKey(newTargetPoint) && !newAreas.ContainsKey(newTargetPoint)
+            && targetLine >= bSection.minLine && targetLine <= bSection.maxLine && targetRow >= bSection.minRow && targetRow <= bSection.maxRow)
         {
             newAreas.Add(newTargetPoint, 0);
-            SplitAreasReclusion(blankAreas, newTargetPoint, newAreas, out newAreas);
+            SplitAreasReclusion(bSection, curLine, newTargetPoint, newAreas, out newAreas);
         }
         //右--
         targetLine = targetPoint.x;
         targetRow = targetPoint.y + 1;
         newTargetPoint = new Vector2(targetLine, targetRow);
-        if (blankAreas.ContainsKey(newTargetPoint) && !newAreas.ContainsKey(newTargetPoint))
+        if (!curLine.ContainsKey(newTargetPoint) && !newAreas.ContainsKey(newTargetPoint)
+            && targetLine >= bSection.minLine && targetLine <= bSection.maxLine && targetRow >= bSection.minRow && targetRow <= bSection.maxRow)
         {
             newAreas.Add(new Vector2(targetLine, targetRow), 0);
-            SplitAreasReclusion(blankAreas, newTargetPoint, newAreas, out newAreas);
+            SplitAreasReclusion(bSection, curLine, newTargetPoint, newAreas, out newAreas);
         }
         //上--
         targetLine = targetPoint.x - 1;
         targetRow = targetPoint.y;
         newTargetPoint = new Vector2(targetLine, targetRow);
-        if (blankAreas.ContainsKey(newTargetPoint) && !newAreas.ContainsKey(newTargetPoint))
+        if (!curLine.ContainsKey(newTargetPoint) && !newAreas.ContainsKey(newTargetPoint)
+            && targetLine >= bSection.minLine && targetLine <= bSection.maxLine && targetRow >= bSection.minRow && targetRow <= bSection.maxRow)
         {
             newAreas.Add(new Vector2(targetLine, targetRow), 0);
-            SplitAreasReclusion(blankAreas, newTargetPoint, newAreas, out newAreas);
+            SplitAreasReclusion(bSection, curLine, newTargetPoint, newAreas, out newAreas);
         }
         //左--
         targetLine = targetPoint.x;
         targetRow = targetPoint.y - 1;
         newTargetPoint = new Vector2(targetLine, targetRow);
-        if (blankAreas.ContainsKey(newTargetPoint) && !newAreas.ContainsKey(newTargetPoint))
+        if (!curLine.ContainsKey(newTargetPoint) && !newAreas.ContainsKey(newTargetPoint)
+            && targetLine >= bSection.minLine && targetLine <= bSection.maxLine && targetRow >= bSection.minRow && targetRow <= bSection.maxRow)
         {
             newAreas.Add(new Vector2(targetLine, targetRow), 0);
-            SplitAreasReclusion(blankAreas, newTargetPoint, newAreas, out newAreas);
+            SplitAreasReclusion(bSection, curLine, newTargetPoint, newAreas, out newAreas);
         }
     }
 

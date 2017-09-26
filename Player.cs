@@ -38,10 +38,16 @@ public class Player : MonoBehaviour {
                 newIndex = new Vector2(Mathf.Clamp(newIndex.x, 0, MapManager.Line - 1), Mathf.Clamp(newIndex.y, 0, MapManager.Row - 1));
                 if (newIndex != curIndex)
                 {
+                    int id = curLine.FindIndex(x => x == newIndex);
+                    if (id >= 1)
+                    {
+                        curLine.RemoveRange(0, id);
+                    }
+
                     curLine.Add(newIndex);
                     LightOnBlock(newIndex);
                     curIndex = newIndex;
-                    MapManager.LineToAreaCheck2(curLine);
+                    MapManager.LineToAreaCheck(curLine);
                 }
             }
         }
