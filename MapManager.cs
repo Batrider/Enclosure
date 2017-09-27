@@ -84,7 +84,7 @@ public class MapManager : MonoBehaviour
     }
     
     static float time;
-    public static void LineToAreaCheck(List<Vector2> curLine)
+    public static List<Vector2> LineToAreaCheck(List<Vector2> curLine)
     {
         int startIndex = -1;
         int endIndex = -1;
@@ -161,6 +161,7 @@ public class MapManager : MonoBehaviour
                 }
             }
             Debug.Log("time:" + (Time.realtimeSinceStartup - time));
+            List<Vector2> targetAreas = new List<Vector2>();
             for (int i = bSection.minLine; i <= bSection.maxLine; i++)
             {
                 for (int j = bSection.minRow; j <= bSection.maxRow; j++)
@@ -169,11 +170,14 @@ public class MapManager : MonoBehaviour
                     if (!cullAreasDict.ContainsKey(target))
                     {
                         LightOnBlock(target);
+                        targetAreas.Add(target);
                     }
                 }
             }
             Debug.Log("time:" + (Time.realtimeSinceStartup - time));
+            return targetAreas;
         }
+        return null;
     }
     /// <summary>
     /// 闭合区间检查--

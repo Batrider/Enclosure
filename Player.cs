@@ -47,7 +47,12 @@ public class Player : MonoBehaviour {
                     curLine.Add(newIndex);
                     LightOnBlock(newIndex);
                     curIndex = newIndex;
-                    MapManager.LineToAreaCheck(curLine);
+                    List<Vector2> targetAreas = MapManager.LineToAreaCheck(curLine);
+                    if (targetAreas != null && targetAreas.Count > 0)
+                    {
+                        areas.AddRange(targetAreas);
+                        curLine.Clear();
+                    }
                 }
             }
         }
