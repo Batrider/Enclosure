@@ -7,7 +7,7 @@ public class Player : MonoBehaviour {
     public List<Vector2> curLine = new List<Vector2>();
     public List<Vector2> areas = new List<Vector2>();
     public float moveCD = 0.5f;
-    public Color playerColor = Color.red;
+    public Color playerColor = Color.yellow;
 	// Use this for initialization
 	void Start () {
         //Vector2 startPos = MapManager.Instance.allBlock
@@ -41,13 +41,15 @@ public class Player : MonoBehaviour {
                     int id = curLine.FindIndex(x => x == newIndex);
                     if (id >= 1)
                     {
+                        List<Vector2> abandonVec = curLine.GetRange(0, id);
+                        MapManager.RevertBlockColor(this,abandonVec);
                         curLine.RemoveRange(0, id);
                     }
 
                     curLine.Add(newIndex);
                     LightOnBlock(newIndex);
                     curIndex = newIndex;
-                    List<Vector2> targetAreas = MapManager.LineToAreaCheck(curLine);
+                    List<Vector2> targetAreas = MapManager.LineToAreaCheck(this, curLine);
                     if (targetAreas != null && targetAreas.Count > 0)
                     {
                         areas.AddRange(targetAreas);
@@ -60,7 +62,7 @@ public class Player : MonoBehaviour {
 
     void LightOnBlock(Vector2 index)
     {
-        Block block = MapManager.Instance.allBlock[(int)index.x, (int)index.y];
+        Block block = MapManager.Instance.GetBlock((int)index.x, (int)index.y);
         if (block != null)
         {
             block.image.color = playerColor;

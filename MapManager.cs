@@ -22,7 +22,9 @@ public class MapManager : MonoBehaviour
     private Canvas canvas;
     private Block blockModel;
 
-    public Block[,] allBlock = new Block[Line, Row];
+    private Block[,] allBlock = new Block[Line, Row];
+    public Dictionary<Player, List<Vector2>> playerBlockDict = new Dictionary<Player, List<Vector2>>();
+    private Color NormalColor = Color.white;
     private void Start()
     {
         instance = this;
@@ -31,7 +33,35 @@ public class MapManager : MonoBehaviour
 
         GenerateMap();
     }
+    public Block GetBlock(int line, int row)
+    {
+        if (line >= 0 && line < Line && row >= 0 && row < Row)
+        {
+            var block = allBlock[line, row];
+            if (block == null || block.transform == null)
+            {
+                Rect canvasRect = canvas.GetComponent<RectTransform>().rect;
+                int perBlockWidth = (int)canvasRect.width / Row;
+                int perBlockHeight = (int)canvasRect.height / Line;
+                int blockSideOfLength = Mathf.Min(perBlockWidth, perBlockHeight);
+                blockModel.image.rectTransform.sizeDelta = new Vector2(blockSideOfLength, blockSideOfLength);
+                Vector2 startPos = new Vector2(-blockSideOfLength * (Row - 1) / 2, blockSideOfLength * (Line - 1) / 2);
 
+                block = Instantiate(blockModel);
+                block.transform.parent = canvas.transform;
+                block.transform.localScale = Vector3.one;
+                block.transform.localPosition = startPos + new Vector2(row * blockSideOfLength, -line * blockSideOfLength);
+                block.image.color = Color.gray;
+                allBlock[line, row] = block;
+            }
+            return block;
+        }
+        else
+        {
+            Debug.LogError("超出范围");
+            return null;
+        }
+    }
 
     #region 生成地图--
     public void GenerateMap()
@@ -55,12 +85,16 @@ public class MapManager : MonoBehaviour
             {
                 for (int row = 0; row < Row; row++)
                 {
-                    var block = Instantiate(blockModel);
-                    block.transform.parent = canvas.transform;
-                    block.transform.localScale = Vector3.one;
-                    block.transform.localPosition = startPos + new Vector2(row * blockSideOfLength, -line * blockSideOfLength);
-                    block.image.color = Color.gray;
-                    allBlock[line, row] = block;
+                    if (allBlock[line, row] == null || allBlock[line, row].transform == null)
+                    {
+                        var block = Instantiate(blockModel);
+                        block.transform.parent = canvas.transform;
+                        block.transform.localScale = Vector3.one;
+                        block.transform.localPosition = startPos + new Vector2(row * blockSideOfLength, -line * blockSideOfLength);
+                        block.image.color = NormalColor;
+                        allBlock[line, row] = block;
+                    }
+                    yield return 1;
                 }
             }
             yield return 1;
@@ -82,9 +116,47 @@ public class MapManager : MonoBehaviour
             maxRow = maxR;
         }
     }
-    
+
+    public static void RevertBlockColor(Player player, List<Vector2> abandonVec)
+    {
+        for (int i = 0; i < abandonVec.Count; i++)
+        {
+            var block = MapManager.Instance.GetBlock((int)abandonVec[i].x, (int)abandonVec[i].y);
+            if (block != null)
+            {
+                if (!MapManager.Instance.playerBlockDict.ContainsKey(player) ||
+                    !MapManager.Instance.playerBlockDict[player].Contains(abandonVec[i]))
+                {
+                    block.image.color = MapManager.Instance.NormalColor;
+                }
+                else if (MapManager.Instance.playerBlockDict.ContainsKey(player) &&
+                    MapManager.Instance.playerBlockDict[player].Contains(abandonVec[i]))
+                {
+                    block.image.color = Color.black;
+                }
+            }
+        }
+    }
+
     static float time;
-    public static List<Vector2> LineToAreaCheck(List<Vector2> curLine)
+    public static List<Vector2> LineToAreaCheck(Player player, List<Vector2> curLine)
+    {
+        List<Vector2> targetAreas = MapManager.LineToAreaCheck(curLine);
+        if (targetAreas != null)
+        {
+            if(MapManager.Instance.playerBlockDict.ContainsKey(player))
+            {
+                MapManager.Instance.playerBlockDict[player].AddRange(targetAreas);
+            }
+            else
+            {
+                MapManager.Instance.playerBlockDict.Add(player, targetAreas);
+            }
+        }
+        return targetAreas;
+    }
+
+    static List<Vector2> LineToAreaCheck(List<Vector2> curLine)
     {
         int startIndex = -1;
         int endIndex = -1;
@@ -267,7 +339,7 @@ public class MapManager : MonoBehaviour
 
     static void LightOnBlock(Vector2 index)
     {
-        Block block = MapManager.Instance.allBlock[(int)index.x, (int)index.y];
+        Block block = MapManager.Instance.GetBlock((int)index.x, (int)index.y);
         if (block != null)
         {
             block.image.color = Color.black;
